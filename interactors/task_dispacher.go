@@ -6,9 +6,9 @@ import (
 	"github.com/psimoesSsimoes/go-task-fanout/models"
 )
 
-//TaskDispatcherRepository required interface to store tasks
+//TaskDispatcherRepository required interface to store tasks on todo table
 type TaskDispatcherRepository interface {
-	Create(ctx context.Context, task models.Task) error
+	CreateTask(ctx context.Context, task models.Task) error
 }
 
 //TaskDispatcherUpdater to holds all external abstractions
@@ -21,11 +21,8 @@ func NewTaskDispatcher(r TaskDispatcherRepository) TaskDispatcherUpdater {
 	return TaskDispatcherUpdater{r}
 }
 
+//Process stores a new Task in todo using repo
 func (i *TaskDispatcherUpdater) Process(ctx context.Context, task models.Task) error {
 
-	if err := i.repository.Create(ctx, task); err != nil {
-		return err // err will come already wrapped
-	}
-
-	return nil
+	return i.repository.CreateTask(ctx, task)
 }

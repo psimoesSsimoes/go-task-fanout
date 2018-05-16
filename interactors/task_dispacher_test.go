@@ -1,17 +1,17 @@
 package interactors
 
-
-
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-
+	"github.com/oklog/ulid"
 	. "github.com/onsi/gomega"
+	"github.com/psimoesSsimoes/go-task-fanout/models"
 	mocks "github.com/psimoesSsimoes/go-task-fanout/tests/mocks/interactors"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestDispatchInsertOnSuccess(t *testing.T) {
@@ -21,7 +21,7 @@ func TestDispatchInsertOnSuccess(t *testing.T) {
 	interactor := NewTaskDispatcher(repository)
 
 	// Mock behaviour must be defined before the actual call
-	repository.On("Create", mock.Anything,_generateSameTask()).Return(nil)
+	repository.On("CreateTask", mock.Anything, _generateSameTask()).Return(nil)
 
 	err := interactor.Process(context.TODO(), _generateSameTask())
 
@@ -35,9 +35,9 @@ func TestDispatchInsertOnFailure(t *testing.T) {
 	repository := &mocks.TaskDispatcherRepository{}
 	interactor := NewTaskDispatcher(repository)
 
-	rError:= errors.New("boooooom")
+	rError := errors.New("boooooom")
 	// Mock behaviour must be defined before the actual call
-	repository.On("Create", mock.Anything,_generateSameTask()).Return(rError)
+	repository.On("CreateTask", mock.Anything, _generateSameTask()).Return(rError)
 
 	err := interactor.Process(context.TODO(), _generateSameTask())
 
@@ -46,14 +46,13 @@ func TestDispatchInsertOnFailure(t *testing.T) {
 	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
 }
 
-
-func _generateSameTask() models.Task{
-	
+func _generateSameTask() models.Task {
+	var i interface{}
 	return models.NewTask(
 		generateSameUlid(),
-	    "atask",
+		"atask",
 		"action",
-		interface{}
+		i,
 	)
 }
 

@@ -11,8 +11,8 @@ type TaskDispatcherRepository struct {
 	mock.Mock
 }
 
-// Create provides a mock function with given fields: ctx, task
-func (_m *TaskDispatcherRepository) Create(ctx context.Context, task models.Task) error {
+// CreateTask provides a mock function with given fields: ctx, task
+func (_m *TaskDispatcherRepository) CreateTask(ctx context.Context, task models.Task) error {
 	ret := _m.Called(ctx, task)
 
 	var r0 error
