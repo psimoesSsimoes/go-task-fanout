@@ -10,7 +10,9 @@ import (
 //TaskRegisterRepository required interface to get tasks from todo to doing and Process them
 type TaskRegisterRepository interface {
 	GetTask(ctx context.Context, action string, age time.Duration) (models.Task, error)
+	GetSeveralTasks(ctx context.Context, action string, age time.Duration) ([]models.Task, error)
 	MarkAsDone(ctx context.Context, task models.Task) error
+	MarkSeveralAsDone(ctx context.Context, task []models.Task) error
 }
 
 //TaskRegisterUpdater to hold all external abstractions
@@ -33,4 +35,16 @@ func (i *TaskRegisterUpdater) StartTask(ctx context.Context, action string, age 
 func (i *TaskRegisterUpdater) CompleteTask(ctx context.Context, task models.Task) error {
 
 	return i.repository.MarkAsDone(ctx, task)
+}
+
+//StartSeveralTask retrieves a task from todo position, changing it to doing position
+func (i *TaskRegisterUpdater) StartSeveralTask(ctx context.Context, action string, age time.Duration) ([]models.Task, error) {
+
+	return i.repository.GetSeveralTasks(ctx, action, age)
+}
+
+//CompleteSeveralTasks task marks a task as completed, removing it from doing position
+func (i *TaskRegisterUpdater) CompleteSeveralTasks(ctx context.Context, tasks []models.Task) error {
+
+	return i.repository.MarkSeveralAsDone(ctx, tasks)
 }
