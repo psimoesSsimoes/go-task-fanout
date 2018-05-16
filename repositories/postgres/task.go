@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -9,19 +10,20 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+	"github.com/psimoesSsimoes/go-task-fanout/repositories/transaction"
 )
 
 // TaskStorage manages tasks.
 type TaskStorage struct {
-	conn       *sql.DB
+	pool       *sql.DB
 	subject    string
 	todoTable  string
 	doingTable string
 }
 
 // NewTaskStorage creates a task storage
-func NewTaskStorage(conn *sql.DB, subject string) *TaskStorage {
-	return &TaskStorage{
+func NewTaskStorage(conn *sql.DB, subject string) TaskStorage {
+	return TaskStorage{
 		conn:       conn,
 		subject:    subject,
 		todoTable:  fmt.Sprintf("%s_todo", subject),
@@ -30,13 +32,14 @@ func NewTaskStorage(conn *sql.DB, subject string) *TaskStorage {
 }
 
 // Init prepares the storage, if needed, to manage task to a specific subject.
-func (s *TaskStorage) Init() error {
-	_, err := s.conn.Exec(`
+func (s *TaskStorage) Init(ctx context.Context) error {
+	return transaction.InTransaction(ctx, s.pool, func(ctx context.Context, tx *sql.Tx) error {
+		_, err := s.pool.ExecContext(ctx, `
 		BEGIN;
 
 		CREATE schema IF NOT EXISTS workqueue;
 
-		CREATE TABLE IF NOT EXISTS workqueue.` + s.todoTable + `
+		CREATE TABLE IF NOT EXISTS workqueue.`+s.todoTable+`
 		(
 			id SERIAL PRIMARY KEY,
 			task_id TEXT NOT NULL,
@@ -45,7 +48,7 @@ func (s *TaskStorage) Init() error {
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 
-		CREATE TABLE IF NOT EXISTS workqueue.` + s.doingTable + `
+		CREATE TABLE IF NOT EXISTS workqueue.`+s.doingTable+`
 		(
 			id SERIAL PRIMARY KEY,
 			task_id TEXT NOT NULL,
@@ -58,22 +61,27 @@ func (s *TaskStorage) Init() error {
 		COMMIT;
 	`)
 
-	if err != nil {
-		return errors.Wrap(err, "error occurred creating the task")
-	}
+		if err != nil {
+			return errors.Wrap(err, "error occurred creating the task")
+		}
 
-	return nil
+		return err
+
+	})
+
 }
 
 // Create stores a task for processing.
-func (s *TaskStorage) Create(task *taskworker.Task) error {
+func (s *TaskStorage) Create(ctx context.Context, task *taskworker.Task) error {
 	data, err := json.Marshal(task.Data)
 	if err != nil {
 		return errors.Wrap(err, "error occurred creating the task")
 
 	}
 
-	_, err = s.conn.Exec(`
+	return transaction.InTransaction(ctx, s.pool, func(ctx context.Context, tx *sql.Tx) error {
+
+		_, err := s.conn.ExecContext(ctx, `
 		INSERT INTO workqueue.`+s.todoTable+`(task_id, action, data)
 		SELECT $1, $2, $3
 		FROM   workqueue.`+s.todoTable+`
@@ -82,18 +90,19 @@ func (s *TaskStorage) Create(task *taskworker.Task) error {
 		HAVING count(1) = 0;
 	`, task.TaskID, task.Action, data)
 
-	if err != nil {
-		return errors.Wrap(err, "error occurred creating the task")
-	}
+		if err != nil {
+			return errors.Wrap(err, "error occurred creating the task")
+		}
 
-	return nil
+		return err
+	})
 }
 
 // Get returns the next Task for command which is in the 'todo' state.
-func (s *TaskStorage) Get(action string, age time.Duration) (*taskworker.Task, error) {
+func (s *TaskStorage) Get(ctx context.Context, action string, age time.Duration) (*taskworker.Task, error) {
 	task := &taskworker.Task{}
 
-	row := s.conn.QueryRow(`
+	row := s.pool.QueryRowContext(ctx, `
 		WITH moved_rows AS (
 			DELETE FROM workqueue.`+s.todoTable+`
 			WHERE id IN (
@@ -131,8 +140,8 @@ func (s *TaskStorage) Get(action string, age time.Duration) (*taskworker.Task, e
 }
 
 // GetBatch returns the next N Tasks for command which is in the 'todo' state.
-func (s *TaskStorage) GetBatch(command string, age time.Duration, n int) ([]*taskworker.Task, error) {
-	rows, err := s.conn.Query(`
+func (s *TaskStorage) GetBatch(ctx Context, command string, age time.Duration, n int) ([]*taskworker.Task, error) {
+	rows, err := s.pool.QueryContext(ctx, `
 		WITH moved_rows AS (
 			DELETE FROM workqueue.`+s.todoTable+`
 			WHERE id IN (
@@ -160,6 +169,10 @@ func (s *TaskStorage) GetBatch(command string, age time.Duration, n int) ([]*tas
 	tasks := make([]*taskworker.Task, 0)
 
 	for rows.Next() {
+		if err = rows.Err(); err != nil {
+			return tasks, errors.Wrap(err, "rows.Next row has error")
+		}
+
 		task := &taskworker.Task{}
 
 		if err := rows.Scan(
@@ -191,16 +204,20 @@ func (s *TaskStorage) Cleanup(command string, age time.Duration) error {
 
 // Complete marks a task as complete.
 func (s *TaskStorage) Complete(task *taskworker.Task) error {
-	_, err := s.conn.Exec(`
+	return transaction.InTransaction(ctx, r.pool, func(ctx context.Context, tx *sql.Tx) error {
+
+		_, err := s.pool.ExecContext(ctx, `
 		DELETE FROM workqueue.`+s.doingTable+`
 		WHERE id = $1
 	`, task.ID)
 
-	if err != nil {
-		return errors.Wrap(err, "error occurred completing the task")
-	}
+		if err != nil {
+			return errors.Wrap(err, "error occurred completing the task")
+		}
 
-	return nil
+		return err
+	})
+
 }
 
 // Fail fails the task and increase retries count.
