@@ -1,0 +1,48 @@
+{
+  "settings": {
+    "number_of_shards": 5,
+    "number_of_replicas": 1,
+    "index.mapping.total_fields.limit": 500,
+    "analysis": {
+      "analyzer": {
+        "standard":  { "tokenizer": "keyword",  "filter": [ "lowercase" ] },
+        "full_text": { "tokenizer": "standard", "filter": [ "lowercase", "asciifolding_keep" ] }
+      },
+      "filter": { 
+        "asciifolding_keep": { "type": "asciifolding", "preserve_original": true } 
+      }
+    }
+  },
+  "mappings": {
+    "_default_": {
+      "_meta": {
+        "version": "0.1.0"
+      },
+      "dynamic_templates": [
+        {
+          "text_attribute": {
+            "path_match": "*_text",
+            "mapping": { "type": "text" }
+          }
+        },
+        {
+          "long_atribute": {
+            "path_match": "*_long",
+            "mapping": { "type": "long", "fields": { "raw": { "type": "text", "analyzer": "keyword" } } }
+          }
+        },
+        {
+          "texts": {
+            "mapping": { "index": "no" },
+            "match_mapping_type": "string"
+          }
+        }
+      ],
+      "properties": {
+        "user_id":    { "type": "text" },
+        "dept_id":    { "type": "text" },
+        "updated_at": { "type": "date" }
+      }
+    }
+  }
+}
