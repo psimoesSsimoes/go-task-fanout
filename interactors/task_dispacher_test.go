@@ -46,6 +46,36 @@ func TestDispatchInsertOnFailure(t *testing.T) {
 	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
 }
 
+func TestDispatchInitOnSuccess(t *testing.T) {
+	RegisterTestingT(t)
+
+	repository := &mocks.TaskDispatcherRepository{}
+	interactor := NewTaskDispatcher(repository)
+
+	// Mock behaviour must be defined before the actual call
+	repository.On("CreateSchema", mock.Anything).Return(nil)
+
+	err := interactor.Init(context.TODO())
+
+	Expect(err).ToNot(HaveOccurred(), "should return an error")
+	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
+}
+
+func TestDispatchInitOnFailure(t *testing.T) {
+	RegisterTestingT(t)
+
+	repository := &mocks.TaskDispatcherRepository{}
+	interactor := NewTaskDispatcher(repository)
+	rError := errors.New("booom")
+	// Mock behaviour must be defined before the actual call
+	repository.On("CreateSchema", mock.Anything).Return(rError)
+
+	err := interactor.Init(context.TODO())
+
+	Expect(err).To(HaveOccurred(), "should return an error")
+	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
+	Expect(err).To(Equal(rError), "should return an error")
+}
 func _generateSameTask() models.Task {
 	var i interface{}
 	return models.NewTask(

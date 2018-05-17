@@ -9,6 +9,7 @@ import (
 //TaskDispatcherRepository required interface to store tasks on todo table
 type TaskDispatcherRepository interface {
 	CreateTask(ctx context.Context, task models.Task) error
+	CreateSchema(ctx context.Context) error
 }
 
 //TaskDispatcherUpdater to holds all external abstractions
@@ -25,4 +26,10 @@ func NewTaskDispatcher(r TaskDispatcherRepository) TaskDispatcherUpdater {
 func (i *TaskDispatcherUpdater) Process(ctx context.Context, task models.Task) error {
 
 	return i.repository.CreateTask(ctx, task)
+}
+
+//Init creates db schema
+func (i *TaskDispatcherUpdater) Init(ctx context.Context) error {
+
+	return i.repository.CreateSchema(ctx)
 }

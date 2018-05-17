@@ -9,6 +9,7 @@ import (
 
 //TaskRegisterRepository required interface to get tasks from todo to doing and Process them
 type TaskRegisterRepository interface {
+	CreateSchema(ctx context.Context) error
 	GetTask(ctx context.Context, action string, age time.Duration) (models.Task, error)
 	GetSeveralTasks(ctx context.Context, action string, age time.Duration) ([]models.Task, error)
 	MarkAsDone(ctx context.Context, task models.Task) error
@@ -47,4 +48,10 @@ func (i *TaskRegisterUpdater) StartSeveralTask(ctx context.Context, action strin
 func (i *TaskRegisterUpdater) CompleteSeveralTasks(ctx context.Context, tasks []models.Task) error {
 
 	return i.repository.MarkSeveralAsDone(ctx, tasks)
+}
+
+//Init task Creates database schema
+func (i *TaskRegisterUpdater) Init(ctx context.Context) error {
+
+	return i.repository.CreateSchema(ctx)
 }

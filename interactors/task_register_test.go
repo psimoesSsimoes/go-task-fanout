@@ -142,6 +142,39 @@ func TestRegisterMarkSeveralAsDoneOnFailure(t *testing.T) {
 	Expect(err).To(Equal(rError), "error is the same")
 }
 
+func TestRegisterInitOnSuccess(t *testing.T) {
+	RegisterTestingT(t)
+
+	repository := &mocks.TaskRegisterRepository{}
+	interactor := NewTaskRegisterUpdater(repository)
+
+	// rError := errors.New("booom")
+	// Mock behaviour must be defined before the actual call
+	repository.On("CreateSchema", mock.Anything).Return(nil)
+
+	err := interactor.Init(context.TODO())
+
+	Expect(err).ToNot(HaveOccurred(), "should return an error")
+	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
+}
+
+func TestRegisterInitOnFailure(t *testing.T) {
+	RegisterTestingT(t)
+
+	repository := &mocks.TaskRegisterRepository{}
+	interactor := NewTaskRegisterUpdater(repository)
+
+	rError := errors.New("booom")
+	// Mock behaviour must be defined before the actual call
+	repository.On("CreateSchema", mock.Anything).Return(rError)
+
+	err := interactor.Init(context.TODO())
+
+	Expect(err).To(HaveOccurred(), "should return an error")
+	Expect(repository.AssertExpectations(t)).To(BeTrue(), "all methods where called")
+	Expect(err).To(Equal(rError), "should return same error")
+}
+
 func _generateMultipleSameTask(limit int) []models.Task {
 	var tasks []models.Task
 	for i := 0; i < limit; i++ {

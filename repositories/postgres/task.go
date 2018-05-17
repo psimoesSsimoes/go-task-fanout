@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/psimoesSsimoes/go-task-fanout/repositories/transaction"
+	taskworker "gitlab.com/marcoxavier/go-taskworker"
 )
 
 // TaskStorage manages tasks.
